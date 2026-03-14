@@ -185,4 +185,31 @@ case "$DISTRO" in
     *)            logo_unknown ;;
 esac
 
-print_info
+LOGO_WIDTH=45
+LOGO_LEN=${#LOGO[@]}
+INFO_LEN=${#INFO[@]}
+TOTAL=$(( LOGO_LEN > INFO_LEN ? LOGO_LEN : INFO_LEN ))
+
+for (( i=0; i<TOTAL; i++ )); do
+    # Logo satırı
+    if (( i < LOGO_LEN )); then
+        RAW_LOGO=$(echo -e "${LOGO[$i]}")
+        # Görünür karakter genişliğini hesapla (ANSI kodlarını sil)
+        VISIBLE=$(echo -e "${LOGO[$i]}" | sed 's/\x1b\[[0-9;]*m//g')
+        VISIBLE_LEN=${#VISIBLE}
+        PADDING=$(( LOGO_WIDTH - VISIBLE_LEN ))
+        printf "%b%${PADDING}s" "${LOGO[$i]}${RESET}" ""
+    else
+        printf "%${LOGO_WIDTH}s" ""
+    fi
+
+    # Bilgi satırı
+    if (( i < INFO_LEN )); then
+        echo -e "  ${INFO[$i]}${RESET}"
+    else
+        echo ""
+    fi
+done
+
+echo ""
+
