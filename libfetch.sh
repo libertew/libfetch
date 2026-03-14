@@ -1,209 +1,258 @@
 #!/bin/bash
 
-
-CYAN='\033[0;36m'
+# Renkler
+RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+WHITE='\033[1;37m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-
-USER=$(whoami)
+# Sistem bilgileri
+USER_NAME=$(whoami)
 HOST=$(hostname)
-OS=$(grep PRETTY_NAME /etc/os-release | cut -d'"' -f2)
+OS=$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || uname -s)
 KERNEL=$(uname -r)
-UPTIME=$(uptime -p)
-CPU=$(grep "model name" /proc/cpuinfo | head -1 | cut -d':' -f2 | xargs)
-RAM_USED=$(free -h | awk '/^Mem:/ {print $3}')
-RAM_TOTAL=$(free -h | awk '/^Mem:/ {print $2}')
-HELL_NAME=$(basename "$SHELL")
+UPTIME=$(uptime -p 2>/dev/null || uptime)
+CPU=$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs || sysctl -n hw.model 2>/dev/null)
+RAM_USED=$(free -h 2>/dev/null | awk '/^Mem:/ {print $3}')
+RAM_TOTAL=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}')
+SHELL_NAME=$(basename "$SHELL")
 DISTRO=$(grep "^ID=" /etc/os-release 2>/dev/null | cut -d'=' -f2 | tr -d '"' || uname -s | tr '[:upper:]' '[:lower:]')
 
-echo -e "${CYAN}${BOLD}${USER}@${HOST}${RESET}"
-echo "─────────────────────────"
-echo -e "${GREEN}OS${RESET}:     $OS"
-echo -e "${GREEN}Kernel${RESET}: $KERNEL"
-echo -e "${GREEN}Uptime${RESET}: $UPTIME"
-echo -e "${GREEN}CPU${RESET}:    $CPU"
-echo -e "${GREEN}RAM${RESET}:    $RAM_USED / $RAM_TOTAL"
+# Argüman varsa distro'yu override et
+if [[ -n "$1" ]]; then
+    DISTRO="${1#-}"   # başındaki - işaretini sil (ör. -freebsd → freebsd)
+    DISTRO="${DISTRO,,}"  # küçük harfe çevir
+fi
 
+# ANSI kodlarını sil
+strip_ansi() {
+    echo -e "$1" | sed 's/\x1b\[[0-9;]*m//g'
+}
+
+# Satırı belirli görünür genişliğe kadar pad'le
+pad_to() {
+    local line="$1"
+    local width="$2"
+    local visible
+    visible=$(strip_ansi "$line")
+    local len=${#visible}
+    local pad=$(( width - len ))
+    printf "%b%*s" "$line" "$pad" ""
+}
+
+# Logo dizileri
 logo_ubuntu() {
-    echo -e "${RED}"
-    echo '        .-/+oossssoo+\-.'
-    echo '      `:+ssssssssssssssssss+`'
-    echo '     -+ssssssssssssssssssyyssss+-'
-    echo '   .ossssssssssssssssss dMMMNysssso.'
-    echo '  /ssssssssssshdmmNNmmyNMMMMhssssss\'
-    echo ' +ssssssssshmydMMMMMMMNddddyssssssss+'
-    echo '/sssssssshNMMMyhhyyyyhmNMMMNhssssssss\'
-    echo '.ssssssssdMMMNhsssssssssshNMMMdssssssss.'
-    echo '+sssshhhyNMMNyssssssssssssyNMMMysssssss+'
-    echo 'ossyNMMMNyMMhsssssssssssssshmmmhssssssso'
-    echo 'ossyNMMMNyMMhsssssssssssssshmmmhssssssso'
-    echo '+sssshhhyNMMNyssssssssssssyNMMMysssssss+'
-    echo '.ssssssssdMMMNhsssssssssshNMMMdssssssss.'
-    echo '/sssssssshNMMMyhhyyyyhdNMMMNhssssssss\'
-    echo ' +sssssssssdmydMMMMMMMMddddyssssssss+'
-    echo '  \ssssssssssshdmNNNNmyNMMMMhssssss/'
-    echo '   .ossssssssssssssssss dMMMNysssso.'
-    echo '     -+sssssssssssssssssyyyssss+-'
-    echo '       `:+ssssssssssssssssss+`'
-    echo '           .-\+oossssoo+/-.'
-    echo -e "${RESET}"
+    C=$RED
+    LOGO=(
+        "${C}        .-/+oossssoo+\\-."
+        "${C}      \`:+ssssssssssssssssss+\`"
+        "${C}     -+ssssssssssssssssssyyssss+-"
+        "${C}   .osssssssssssssssssssdMMMNysssso."
+        "${C}  /ssssssssssshdmmNNmmyNMMMMhssssss\\"
+        "${C} +ssssssssshmydMMMMMMMNddddyssssssss+"
+        "${C}/sssssssshNMMMyhhyyyyhmNMMMNhssssssss\\"
+        "${C}.ssssssssdMMMNhsssssssssshNMMMdssssssss."
+        "${C}+sssshhhyNMMNyssssssssssssyNMMMysssssss+"
+        "${C}ossyNMMMNyMMhsssssssssssssshmmmhssssssso"
+        "${C}ossyNMMMNyMMhsssssssssssssshmmmhssssssso"
+        "${C}+sssshhhyNMMNyssssssssssssyNMMMysssssss+"
+        "${C}.ssssssssdMMMNhsssssssssshNMMMdssssssss."
+        "${C}/sssssssshNMMMyhhyyyyhdNMMMNhssssssss\\"
+        "${C} +sssssssssdmydMMMMMMMMddddyssssssss+"
+        "${C}  \\ssssssssssshdmNNNNmyNMMMMhssssss/"
+        "${C}   .osssssssssssssssssssdMMMNysssso."
+        "${C}     -+sssssssssssssssssyyyssss+-"
+        "${C}       \`:+ssssssssssssssssss+\`"
+        "${C}           .-/+oossssoo+/-."
+    )
 }
 
 logo_arch() {
-    echo -e "${CYAN}"
-    echo '                   -`'
-    echo '                  .o+`'
-    echo '                 `ooo/'
-    echo '                `+oooo:'
-    echo '               `+oooooo:'
-    echo '               -+oooooo+:'
-    echo '             `/:-:++oooo+:'
-    echo '            `/++++/+++++++:'
-    echo '           `/++++++++++++++:'
-    echo '          `/+++ooooooooooooo/`'
-    echo '         ./ooosssso++osssssso+`'
-    echo '        .oossssso-````/ossssss+`'
-    echo '       -osssssso.      :ssssssso.'
-    echo '      :osssssss/        osssso+++'
-    echo '     /ossssssss/        +ssssooo/-'
-    echo '   `/ossssso+/:-        -:/+osssso+-'
-    echo '  `+sso+:-`                 `.-/+oso:'
-    echo ' `++:.                           `-/+/'
-    echo ' .`                                 `/'
-    echo -e "${RESET}"
+    C=$CYAN
+    LOGO=(
+        "${C}                   -\`"
+        "${C}                  .o+\`"
+        "${C}                 \`ooo/"
+        "${C}                \`+oooo:"
+        "${C}               \`+oooooo:"
+        "${C}               -+oooooo+:"
+        "${C}             \`/:-:++oooo+:"
+        "${C}            \`/++++/+++++++:"
+        "${C}           \`/++++++++++++++:"
+        "${C}          \`/+++ooooooooooooo/\`"
+        "${C}         ./ooosssso++osssssso+\`"
+        "${C}        .oossssso-\`\`\`\`/ossssss+\`"
+        "${C}       -osssssso.      :ssssssso."
+        "${C}      :osssssss/        osssso+++"
+        "${C}     /ossssssss/        +ssssooo/-"
+        "${C}   \`/ossssso+/:-        -:/+osssso+-"
+        "${C}  \`+sso+:-\`                 \`.-/+oso:"
+        "${C} \`++:.                           \`-/+/"
+        "${C} .\`                                 \`/"
+    )
 }
 
 logo_fedora() {
-    echo -e "${BLUE}"
-    echo '          /:-------------:\`'
-    echo '       :-------------------::'
-    echo '     :-----------/shhOHbmp---:\`'
-    echo '   /-----------omMMMNNNMMD  ---:'
-    echo '  :-----------sMMMMNMNMP.    ---:'
-    echo ' :-----------:MMMdP-------    ---\`'
-    echo ',------------:MMMd--------    ---:'
-    echo ':------------:MMMd-------    .---:'
-    echo ':----    oNMMMMMMMMMNho     .----:'
-    echo ':--     .+shhhMMMmhhy++   .------/'
-    echo ':-    -------:MMMd---------:---:'
-    echo ':-   --------/MMMd--------:--:'
-    echo ':-- ----------:MMMd------:---:'
-    echo ':---     --------DMMMd---:--:'
-    echo ':------    -------:+MMMdoo:-'
-    echo ':--------   --------:+hMMMd-'
-    echo ':--------    ----------:hMD.'
-    echo ':------    -------:\`'
-    echo ':----               :'
-    echo ':------------------:'
-    echo '`-----------------`'
-    echo -e "${RESET}"
+    C=$BLUE
+    LOGO=(
+        "${C}          /:-------------:\`"
+        "${C}       :-------------------::"
+        "${C}     :-----------/shhOHbmp---:\`"
+        "${C}   /-----------omMMMNNNMMD  ---:"
+        "${C}  :-----------sMMMMNMNMP.    ---:"
+        "${C} :-----------:MMMdP-------    ---\`"
+        "${C},------------:MMMd--------    ---:"
+        "${C}:------------:MMMd-------    .---:"
+        "${C}:----    oNMMMMMMMMMNho     .----:"
+        "${C}:--     .+shhhMMMmhhy++   .------/"
+        "${C}:-    -------:MMMd---------:---:"
+        "${C}:-   --------/MMMd--------:--:"
+        "${C}:-- ----------:MMMd------:---:"
+        "${C}:---     --------DMMMd---:--:"
+        "${C}:------    -------:+MMMdoo:-"
+        "${C}:--------   --------:+hMMMd-"
+        "${C}:--------    ----------:hMD."
+        "${C}:------    -------:\`"
+        "${C}:----               :"
+        "${C}:------------------:"
+    )
 }
 
 logo_gentoo() {
-    echo -e "${MAGENTA}"
-    echo '         -/oyddmdhs+:'
-    echo '      -smMMMMMMMMMMMMMMy:'
-    echo '    /MMMMMMMMMMMMMMMMMMMm+'
-    echo '   oMMMMMMMMMMMMMMMMMMMMMM/'
-    echo '  +MMMMMMMmyssso/+MMMMMMMMs'
-    echo '  mMMMMMMy        /MMMMMMMs'
-    echo '  NMMMMMMy         :MMMMMMm'
-    echo '  NMMMMMMy          /MMMMMMs'
-    echo '  mMMMMMMy           oMMMMMMs'
-    echo '  +MMMMMMMy           +MMMMMMm'
-    echo '   oMMMMMMMy          /MMMMMMs'
-    echo '    yMMMMMMMds/:-:/oymMMMMMMm/'
-    echo '     -oNMMMMMMMMMMMMMMMMMNs-'
-    echo '        `-+ydNMMMMMMNdy+-`'
-    echo -e "${RESET}"
+    C=$MAGENTA
+    LOGO=(
+        "${C}         -/oyddmdhs+:"
+        "${C}      -smMMMMMMMMMMMMMMy:"
+        "${C}    /MMMMMMMMMMMMMMMMMMMm+"
+        "${C}   oMMMMMMMMMMMMMMMMMMMMMM/"
+        "${C}  +MMMMMMMmyssso/+MMMMMMMMs"
+        "${C}  mMMMMMMy        /MMMMMMMs"
+        "${C}  NMMMMMMy         :MMMMMMm"
+        "${C}  NMMMMMMy          /MMMMMMs"
+        "${C}  mMMMMMMy           oMMMMMMs"
+        "${C}  +MMMMMMMy           +MMMMMMm"
+        "${C}   oMMMMMMMy          /MMMMMMs"
+        "${C}    yMMMMMMMds/:-:/oymMMMMMMm/"
+        "${C}     -oNMMMMMMMMMMMMMMMMMNs-"
+        "${C}        \`-+ydNMMMMMMNdy+-\`"
+    )
 }
 
 logo_freebsd() {
-    echo -e "${RED}"
-    echo '```                        `.'
-    echo '  ` `.....---.......--.```   -/'
-    echo '  +o   .--`         /y:`      +.'
-    echo '   yo`:.            :o      `+-'
-    echo '    y/               -/`   -o/'
-    echo '   .-                  ::/sy+:.'
-    echo '   /                     `--  /'
-    echo '  `:                          :`'
-    echo '  `:                          :`'
-    echo '   /                          /'
-    echo '   .-                        -.'
-    echo '    --                      --'
-    echo '     `:`                  `:`'
-    echo '       .--             --.'
-    echo '          .---.   .---.'
-    echo -e "${RESET}"
+    C=$RED
+    LOGO=(
+        "${C}   \`\`\`                        \`."
+        "${C}     \` \`.....---.......--..\`\`\`   -/"
+        "${C}     +o   .--\`         /y:\`      +."
+        "${C}      yo\`:.            :o      \`+-"
+        "${C}       y/               -/\`   -o/"
+        "${C}      .-                  ::/sy+:."
+        "${C}      /                     \`--  /"
+        "${C}     \`:                          :\`"
+        "${C}     \`:                          :\`"
+        "${C}      /                          /"
+        "${C}      .-                        -."
+        "${C}       --                      --"
+        "${C}        \`:\`                  \`:\`"
+        "${C}          .--             --."
+        "${C}             .---.   .---."
+    )
 }
 
 logo_openbsd() {
-    echo -e "${YELLOW}"
-    echo '                    |    .'
-    echo '                    |.  .|\`\`-'
-    echo '                    |..\`  \`.'
-    echo '                  ..|    .  \`.'
-    echo '                .` |   .     \`.'
-    echo '           _   .   |  .   .   \`.'
-    echo '         .` \`.|   |\.  .       \`.'
-    echo '       .`    \`|   | \`.  .        \`.'
-    echo '     .`       |   |   \`.  .        \`.'
-    echo '   .`         |   |     \`.  .        \`.'
-    echo ' .`           |   |       \`.  .        \`.'
-    echo '              |   |         \`.  .       \`'
-    echo '              |   |           \`.  .     .'
-    echo '              |   |             \`. .\`  .'
-    echo '              |   |               \`.\`.'
-    echo '              |   |                \`.'
-    echo -e "${RESET}"
+    C=$YELLOW
+    LOGO=(
+        "${C}                    |    ."
+        "${C}                    |.  .|\`\`\`-"
+        "${C}                    |..\`  \`."
+        "${C}                  ..|    .  \`."
+        "${C}                .\` |   .     \`."
+        "${C}           _   .   |  .   .   \`."
+        "${C}         .\` \`.|   |\\.  .       \`."
+        "${C}       .\`    \`|   | \`.  .        \`."
+        "${C}     .\`       |   |   \`.  .        \`."
+        "${C}   .\`         |   |     \`.  .        \`."
+        "${C} .\`           |   |       \`.  .        \`."
+        "${C}              |   |         \`.  .       \`"
+        "${C}              |   |           \`.  .     ."
+        "${C}              |   |             \`. .\`  ."
+        "${C}              |   |               \`.\`."
+        "${C}              |   |                \`."
+    )
 }
 
 logo_unknown() {
-    echo -e "${WHITE}"
-    echo '    .--.'
-    echo '   |o_o |'
-    echo '   |:_/ |'
-    echo '  //   \ \'
-    echo ' (|     | )'
-    echo '/'\''\_   _/`\'
-    echo '\___)=(___/'
-    echo -e "${RESET}"
+    C=$WHITE
+    LOGO=(
+        "${C}    .--."
+        "${C}   |o_o |"
+        "${C}   |:_/ |"
+        "${C}  //   \\\\ \\"
+        "${C} (|     | )"
+        "${C}/'\\\\_   _/\`\\"
+        "${C}\\___)=(___/"
+    )
 }
 
-# ─── LOGO SEÇİMİ ───────────────────────────────────────────────────────────────
+# Desteklenen distro listesi (yardım mesajı için)
+SUPPORTED="ubuntu, arch, fedora, gentoo, freebsd, openbsd"
 
+# -list veya -help argümanı
+if [[ "$DISTRO" == "list" || "$DISTRO" == "help" ]]; then
+    echo -e "${CYAN}Kullanım:${RESET} ./libfetch.sh [distro]"
+    echo -e "${CYAN}Örnek:${RESET}   ./libfetch.sh -arch"
+    echo -e "${CYAN}Desteklenen:${RESET} $SUPPORTED"
+    exit 0
+fi
+
+# Distro'ya göre logo seç
 case "$DISTRO" in
-    ubuntu)       logo_ubuntu  ;;
-    arch)         logo_arch    ;;
-    fedora)       logo_fedora  ;;
-    gentoo)       logo_gentoo  ;;
-    freebsd)      logo_freebsd ;;
-    openbsd)      logo_openbsd ;;
-    *)            logo_unknown ;;
+    ubuntu)  logo_ubuntu  ;;
+    arch)    logo_arch    ;;
+    fedora)  logo_fedora  ;;
+    gentoo)  logo_gentoo  ;;
+    freebsd) logo_freebsd ;;
+    openbsd) logo_openbsd ;;
+    *)
+        # Eğer argüman verilmişse ve tanınmıyorsa uyar
+        if [[ -n "$1" ]]; then
+            echo -e "${RED}Hata:${RESET} '${DISTRO}' tanınmıyor. Desteklenenler: $SUPPORTED"
+            exit 1
+        fi
+        logo_unknown
+        ;;
 esac
 
-LOGO_WIDTH=45
+# Bilgi satırları
+INFO=(
+    "${CYAN}${BOLD}${USER_NAME}${RESET}@${CYAN}${BOLD}${HOST}${RESET}"
+    "${WHITE}─────────────────────────────${RESET}"
+    "${GREEN}OS${RESET}:     $OS"
+    "${GREEN}Kernel${RESET}: $KERNEL"
+    "${GREEN}Uptime${RESET}: $UPTIME"
+    "${GREEN}CPU${RESET}:    $CPU"
+    "${GREEN}RAM${RESET}:    $RAM_USED / $RAM_TOTAL"
+    "${GREEN}Shell${RESET}:  $SHELL_NAME"
+)
+
+# Yan yana yazdır
+LOGO_COL=46
 LOGO_LEN=${#LOGO[@]}
 INFO_LEN=${#INFO[@]}
 TOTAL=$(( LOGO_LEN > INFO_LEN ? LOGO_LEN : INFO_LEN ))
 
 for (( i=0; i<TOTAL; i++ )); do
-    # Logo satırı
     if (( i < LOGO_LEN )); then
-        RAW_LOGO=$(echo -e "${LOGO[$i]}")
-        # Görünür karakter genişliğini hesapla (ANSI kodlarını sil)
-        VISIBLE=$(echo -e "${LOGO[$i]}" | sed 's/\x1b\[[0-9;]*m//g')
-        VISIBLE_LEN=${#VISIBLE}
-        PADDING=$(( LOGO_WIDTH - VISIBLE_LEN ))
-        printf "%b%${PADDING}s" "${LOGO[$i]}${RESET}" ""
+        pad_to "${LOGO[$i]}${RESET}" "$LOGO_COL"
     else
-        printf "%${LOGO_WIDTH}s" ""
+        printf "%${LOGO_COL}s" ""
     fi
 
-    # Bilgi satırı
     if (( i < INFO_LEN )); then
         echo -e "  ${INFO[$i]}${RESET}"
     else
@@ -212,4 +261,3 @@ for (( i=0; i<TOTAL; i++ )); do
 done
 
 echo ""
-
