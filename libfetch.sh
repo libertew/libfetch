@@ -23,6 +23,76 @@ RAM_TOTAL=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}')
 SHELL_NAME=$(basename "$SHELL")
 DISTRO=$(grep "^ID=" /etc/os-release 2>/dev/null | cut -d'=' -f2 | tr -d '"' || uname -s | tr '[:upper:]' '[:lower:]')
 
+
+get_packages() {
+    local pkgs=""
+ 
+    if command -v dpkg-query &>/dev/null; then
+        local n
+        n=$(dpkg-query -f '.\n' -W 2>/dev/null | wc -l)
+        pkgs="${pkgs}${n} (dpkg) "
+    fi
+    if command -v rpm &>/dev/null; then
+        local n
+        n=$(rpm -qa 2>/dev/null | wc -l)
+        pkgs="${pkgs}${n} (rpm) "
+    fi
+    if command -v pacman &>/dev/null; then
+        local n
+        n=$(pacman -Qq 2>/dev/null | wc -l)
+        pkgs="${pkgs}${n} (pacman) "
+    fi
+    if command -v flatpak &>/dev/null; then
+        local n
+        n=$(flatpak list 2>/dev/null | wc -l)
+        (( n > 0 )) && pkgs="${pkgs}${n} (flatpak) "
+    fi
+    if command -v snap &>/dev/null; then
+        local n
+        n=$(snap list 2>/dev/null | tail -n +2 | wc -l)
+        (( n > 0 )) && pkgs="${pkgs}${n} (snap) "
+    fi
+ 
+    [[ -z "$pkgs" ]] && pkgs="N/A"
+    echo "${pkgs% }"
+}
+ 
+# WM / DE tespiti
+get_wm() {
+    # WSL kontrolü
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        echo "WSL (Windows)"
+        return
+    fi
+ 
+    # DE değişkenleri
+    [[ -n "$XDG_CURRENT_DESKTOP" ]] && echo "$XDG_CURRENT_DESKTOP" && return
+    [[ -n "$DESKTOP_SESSION"      ]] && echo "$DESKTOP_SESSION"     && return
+ 
+    # Çalışan WM process'lerini tara
+    local wm_list=(
+        kwin_wayland kwin_x11 kwin
+        mutter muffin marco
+        openbox fluxbox blackbox icewm
+        i3 sway bspwm herbstluftwm
+        xfwm4 awesome dwm qtile
+        compiz enlightenment
+    )
+    for wm in "${wm_list[@]}"; do
+        pgrep -x "$wm" &>/dev/null && echo "$wm" && return
+    done
+ 
+    [[ -n "$WAYLAND_DISPLAY" ]] && echo "Wayland" && return
+    [[ -n "$DISPLAY"         ]] && echo "X11"     && return
+ 
+    echo "N/A"
+}
+ 
+PACKAGES=$(get_packages)
+WM=$(get_wm)
+ 
+
+
 # Argüman varsa distro'yu override et
 if [[ -n "$1" ]]; then
     DISTRO="${1#-}"   # başındaki - işaretini sil (ör. -freebsd → freebsd)
@@ -238,6 +308,8 @@ INFO=(
     "${GREEN}CPU${RESET}:    $CPU"
     "${GREEN}RAM${RESET}:    $RAM_USED / $RAM_TOTAL"
     "${GREEN}Shell${RESET}:  $SHELL_NAME"
+    "${GREEN}WM/DE${RESET}:    $WM"
+    "${GREEN}Packages${RESET}: $PACKAGES"
 )
 
 # Yan yana yazdır
